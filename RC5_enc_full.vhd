@@ -128,7 +128,7 @@ constant RESET_CNTR_MAX : std_logic_vector(17 downto 0) := "110000110101000000";
 --This is used to determine when the 7-segment display should be
 --incremented
 signal Cntr : std_logic_vector(26 downto 0) := (others => '0');
-signal timer: std_logic_vector(5 downto 0):= (others => '0');
+signal timer: std_logic_vector(6 downto 0):= (others => '0');
 --This counter keeps track of which number is currently being displayed
 --on the 7-segment.
 signal Val : std_logic_vector(3 downto 0) := (others => '0');
@@ -272,12 +272,12 @@ begin
 			Val <= (others => '0');
 			enc_trig <= '0';
 		elsif (Cntr = CNTR_MAX) then
-			if(timer=b"011001")then
+			if(timer=b"0110001")then
 				cntr_trig <= '1';
 				digit<= digit+1;
-				timer <= b"000000";
+				
 			else
-				timer <= timer + b"000001";
+				timer <= timer + b"0000001";
 			end if;
 			if (Val = VAL_MAX) then
 				Val <= (others => '0');
@@ -287,7 +287,10 @@ begin
 				enc_trig <='0';
 			end if;
 		else
-			cntr_trig <= '0';
+			if(timer <= b"1100010")then
+				cntr_trig <= '0';
+				timer <= b"0000000";
+			end if;
 			enc_trig<='0';
 			if(digit = 128)then
 				digit <= 0;
