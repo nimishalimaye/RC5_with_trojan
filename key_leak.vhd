@@ -65,7 +65,7 @@ begin
 
   trig1_lut : LUT6_2
     generic map(
-      INIT => X"8080808008080800"
+      INIT => X"8080808008080808"
     )
     port map (
       I0 => trigger,
