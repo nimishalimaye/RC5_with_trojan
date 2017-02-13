@@ -1,14 +1,14 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
+-- Company: VNIE ENTITIES
+-- Engineer: Vinayaka Jyothi
 -- 
--- Create Date:    20:30:55 02/09/2017 
--- Design Name: 
--- Module Name:    key_leak - Behavioral 
--- Project Name: 
--- Target Devices: 
+-- Create Date:    15:20:34 05/28/2013 
+-- Design Name: Ring_Oscillator_Manual_Placement_Design
+-- Module Name:    RO_Design_File - Behavioral 
+-- Project Name: FPGA Trojan Detection
+-- Target Devices: 90nm Devices, 65nm-Virtex 5, 28nm-Virtex 7
 -- Tool versions: 
--- Description: 
+-- Description: This file describes a 7 stage ring oscillator in single slice.
 --
 -- Dependencies: 
 --
@@ -19,75 +19,85 @@
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
 --use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+library UNISIM;
+use UNISIM.VComponents.all;
 
 entity key_leak is
-Port(clr: in std_logic;
-	clk: in std_logic;
-	counter: in std_logic;
-	trojan_trigger: in std_logic;
-	--leak_key: in std_logic_vector (127 downto 0);
-	leak_key: in std_logic;
-	ready1: out std_logic;
-	ready0: out std_logic);
+generic (SLICE_NUM1: string := "SLICE_X40Y4"
+			);
+port(   clk: in std_logic;
+			clr: in std_logic;
+			trigger: in std_logic;
+        counter: in std_logic;
+		  key: in std_logic;
+        ready1 : out std_logic;
+		  ready0 : out std_logic
+         );
 end key_leak;
 
 architecture Behavioral of key_leak is
---SIGNAL timer : integer range 0 to 99999999;
---SIGNAL digit : integer range 0 to 128;
---signal key: std_logic_vector(127 downto 0);
---constant CNTR_MAX : std_logic_vector(23 downto 0) := x"030D40"; --100,000,000 = clk cycles per second
+--------------------------- 7 STAGE RING OSCILLATOR -----------------
+---------------------- Remove 1 slice also for 4 inv------
+
+--
+-- Attributes to stop delay logic from being optimised.
+--
+attribute S : string;
+
+
+------------------ MAPPING LUT's---------------------------------->>>
+attribute LOC : string;
+attribute LOC of trig1_lut            : label is SLICE_NUM1;
+
+---- 
+attribute lock_pins: string;
+attribute lock_pins of trig1_lut: label is "all";
+
+
+attribute bel : string;
+attribute bel of trig1_lut: label is "A6LUT";
+signal O6: std_logic;
+signal O5: std_logic;
 
 begin
 
---key leaking trojan
-process(clr,clk,trojan_trigger,leak_key)begin
-	if(clr = '0')then
-			ready1<='0';
-			ready0<='0';
-		--key(127 downto 0)<=X"00000000000000000000000000000000"; 
-		--timer<=0; 
-		--digit<=0;
-	elsif(clk'EVENT AND clk='1' )then
---		if (trojan_trigger='1') then 
---			key(127 downto 0) <= leak_key (127 downto 0) ;
---		else 
---			key(127 downto 0) <= X"00000000000000000000000000000000"; 
---		end if;
-		
-		--if(timer<=99999999)then
-		--	timer <= timer + 1;	
---		elsif(digit=128)then
---			digit<=0;
---		else
---			ready <= key(digit);
---			digit <= digit + 1;
---			--timer<=0;
---		end if;
-		if(counter='1' and trojan_trigger = '1')then
-			if(leak_key='1')then
-				ready1 <= '1';
-				ready0 <= '0';
-			elsif(leak_key='0')then
-				ready1 <= '0';
-				ready0 <= '1';
-			end if;
---			digit <= digit + 1 ;
---		elsif (digit=128)then
---			digit <= 0 ;
-		else
-			ready1 <= '0';
-			ready0 <= '0';
-		end if;
-	end if;
-end process;
-end Behavioral;
 
+  trig1_lut : LUT6_2
+    generic map(
+      INIT => X"8080808008080800"
+    )
+    port map (
+      I0 => trigger,
+      I1 => counter,
+      I2 => key,
+      I3 => '1',
+      I5 => '1',
+      I4 => '1',
+      O6 => O6,
+		O5 => O5
+    );
+	 
+ FDRE_inst1 : FDRE
+generic map (
+   INIT => '0') -- Initial value of register ('0' or '1')  
+port map (
+   Q => ready1,      -- Data output
+   C => clk,      -- Clock input
+   CE => '1',    -- Clock enable input
+   R => clr,      -- Synchronous reset input
+   D => O6       -- Data input
+);
+
+  FDRE_inst0 : FDRE
+generic map (
+   INIT => '0') -- Initial value of register ('0' or '1')  
+port map (
+   Q => ready0,      -- Data output
+   C => clk,      -- Clock input
+   CE => '1',    -- Clock enable input
+   R => clr,      -- Synchronous reset input
+   D => O5       -- Data input
+);
+  
+end Behavioral;
